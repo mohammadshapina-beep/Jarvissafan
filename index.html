@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08111f">
+<title>JARVIS Mobile</title>
+<style>
+:root{color-scheme:dark;--bg:#08111f;--panel:#101e31;--line:#233955;--text:#edf5ff;--muted:#a7bad0;--cyan:#54d8ef;--blue:#5489ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#122c48 0%,var(--bg) 58%);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{width:min(720px,100%);margin:auto;padding:22px 16px calc(30px + env(safe-area-inset-bottom))}
+header{text-align:center;padding:14px 0 22px}.orb{height:94px;width:94px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;border:1px solid #4ed5ed;background:radial-gradient(circle,#235b7a 0%,#10283f 55%,#08111f 75%);box-shadow:0 0 35px #39c6ec44,inset 0 0 25px #4ed5ed22;font-size:30px;color:var(--cyan);font-weight:700;letter-spacing:2px}
+h1{font-size:27px;margin:0;letter-spacing:3px}header p{color:var(--muted);margin:7px 0 0;font-size:14px}
+.panel{background:#101e31dd;border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 12px 30px #0002}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#64e5aa;box-shadow:0 0 10px #64e5aa66}
+#log{min-height:190px;max-height:36vh;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:8px 2px}
+.msg{max-width:94%;padding:11px 13px;border-radius:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.jarvis{align-self:flex-start;background:#182c43;border:1px solid #294765}.user{align-self:flex-end;background:#183b59;border:1px solid #2d6387}
+.small{font-size:12px;color:var(--muted);line-height:1.5}.controls{display:flex;gap:8px}.controls input{min-width:0;flex:1;background:#091625;border:1px solid #29415c;border-radius:12px;padding:13px;color:var(--text);font:inherit}
+button{border:1px solid #38627f;background:#17334d;color:var(--text);padding:12px 14px;border-radius:12px;font:600 14px system-ui;cursor:pointer;min-height:46px}button:active{transform:scale(.98)}button.primary{background:linear-gradient(120deg,#167b9a,#2758ac);border-color:#51cbe5}.microw{display:flex;gap:9px;margin-top:10px}.microw button{flex:1}.quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.quick button{text-align:left;background:#0d1a2b}.quick span{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:4px}.section-title{font-size:13px;color:#c6d7e8;text-transform:uppercase;letter-spacing:1.4px;margin:0 0 12px}.footer{text-align:center;color:#7e94ad;font-size:12px;padding:8px 12px}
+@media(min-width:540px){.quick{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div class="orb">J</div>
+<h1>J.A.R.V.I.S.</h1>
+<p>Mobile assistant · free starter · no API key</p>
+</header>
+<section class="panel">
+<div class="status"><span class="dot"></span><span id="status">Ready · basic commands work offline</span></div>
+<div id="log" aria-live="polite">
+<div class="msg jarvis">Hello. I'm JARVIS Mobile. Tap the microphone or type a command. Try “help” or “open YouTube”.</div>
+</div>
+<div class="controls">
+<input id="command" placeholder="Type a command…" autocomplete="off" enterkeyhint="send">
+<button id="send" class="primary">Send</button>
+</div>
+<div class="microw">
+<button id="mic" class="primary">🎙 Speak</button>
+<button id="voice">🔊 Voice replies: ON</button>
+<button id="clear">Clear chat</button>
+</div>
+<p class="small">Voice recognition depends on your browser and may use the phone's speech service. If the mic doesn't work, use your keyboard's microphone dictation.</p>
+</section>
+<section class="panel">
+<p class="section-title">Quick commands</p>
+<div class="quick">
+<button data-cmd="help">Help<span>Show commands</span></button>
+<button data-cmd="time">What time is it?<span>Local device time</span></button>
+<button data-cmd="date">What's today's date?<span>Local device date</span></button>
+<button data-cmd="open YouTube">Open YouTube<span>Launch website</span></button>
+<button data-cmd="open Google">Open Google<span>Launch website</span></button>
+<button data-cmd="open WhatsApp">Open WhatsApp<span>Website/app handoff</span></button>
+<button data-cmd="open Maps">Open Maps<span>Launch maps</span></button>
+<button data-cmd="open Gmail">Open Gmail<span>Launch website</span></button>
+<button data-cmd="open ChatGPT">Open ChatGPT<span>Open AI chat website</span></button>
+</div>
+</section>
+<section class="panel">
+<p class="section-title">Notes stored on this device</p>
+<div class="controls">
+<input id="note" placeholder="Write a note to remember…" autocomplete="off">
+<button id="saveNote">Save</button>
+</div>
+<div id="notes" class="small" style="margin-top:10px">No notes saved yet.</div>
+<p class="small">Notes use this browser's local storage. Clearing browser data may erase them. Don't save passwords, OTPs, or sensitive information.</p>
+</section>
+<div class="footer">JARVIS Mobile Starter · Runs in your browser · No subscription required</div>
+</main>
+<script>
+(function(){
+ const $=id=>document.getElementById(id);
+ let voiceOn=true, recognition=null, listening=false;
+ const noteKey='jarvis_mobile_notes_v1';
+ function addMessage(text,who='jarvis'){
+   const el=document.createElement('div'); el.className='msg '+who; el.textContent=text;
+   $('log').appendChild(el); $('log').scrollTop=$('log').scrollHeight;
+ }
+ function speak(text){
+   if(!voiceOn || !('speechSynthesis' in window)) return;
+   try { speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=1; u.pitch=1; speechSynthesis.speak(u); } catch(e){}
+ }
+ function reply(text){addMessage(text,'jarvis'); speak(text);}
+ function openTarget(target){
+   const t=target.trim().toLowerCase();
+   const sites={
+     'youtube':'https://www.youtube.com','google':'https://www.google.com',
+     'gmail':'https://mail.google.com','maps':'https://maps.google.com',
+     'google maps':'https://maps.google.com','whatsapp':'https://wa.me/',
+     'whatsapp web':'https://web.whatsapp.com','chatgpt':'https://chatgpt.com',
+     'gemini':'https://gemini.google.com','facebook':'https://www.facebook.com',
+     'instagram':'https://www.instagram.com','calendar':'https://calendar.google.com',
+     'drive':'https://drive.google.com'
+   };
+   if(sites[t]){window.open(sites[t],'_blank','noopener'); return `Opening ${target}. If your browser blocks pop-ups, allow this page to open links.`;}
+   if(t==='camera') return 'For privacy, open your phone camera from the Android home screen or lock-screen shortcut.';
+   if(t==='settings') return 'Open Android Settings from your notification shade or home screen. Browsers cannot safely launch every system settings screen.';
+   return `I don't have a safe direct link for "${target}". Try YouTube, Google, Gmail, Maps, WhatsApp, ChatGPT, Gemini, Drive, or Calendar.`;
+ }
+ function handle(raw){
+   const text=raw.trim(); if(!text) return;
+   addMessage(text,'user'); $('command').value='';
+   const c=text.toLowerCase().replace(/[?!.,]+$/,'').trim();
+   if(['help','commands','what can you do','what can you do jarvis'].includes(c)){
+     reply('I can tell the time and date, open supported websites, save local notes, and speak replies. Try “open YouTube”, “time”, “date”, or “note buy groceries”. I am a starter assistant, not yet a full general-purpose AI brain.'); return;
+   }
+   if(/^(hi|hello|hey)( jarvis)?$/.test(c)){reply('Hello. Systems ready. What would you like me to do?');return;}
+   if(c==='time'||c.includes('what time is it')||c==='tell me the time'){
+     reply('It is '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'.');return;
+   }
+   if(c==='date'||c.includes("today's date")||c.includes('what is the date')||c.includes('what day is it')){
+     reply('Today is '+new Date().toLocaleDateString([], {weekday:'long',year:'numeric',month:'long',day:'numeric'})+'.');return;
+   }
+   if(c.startsWith('open ')){reply(openTarget(text.slice(5)));return;}
+   if(c.startsWith('note ' )||c.startsWith('remember ')){
+     const n=text.slice(c.startsWith('note ')?5:9).trim();
+     if(n){saveNote(n);reply('Saved that note on this device.');}else reply('Tell me what you want me to remember.');return;
+   }
+   if(c==='show notes'||c==='read notes'||c==='my notes'){renderNotes();const ns=loadNotes();reply(ns.length?'Your saved notes are shown below the note box.':'You have no saved notes yet.');return;}
+   if(c==='stop speaking'||c==='be quiet'){if('speechSynthesis' in window)speechSynthesis.cancel();reply('Okay.');return;}
+   if(c==='who are you'){reply('I am JARVIS Mobile, a free browser-based starter. I can run simple commands locally, but I am not connected to a general AI model yet.');return;}
+   if(c.startsWith('search ')){const q=text.slice(7).trim();window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank','noopener');reply('Searching the web for '+q+'.');return;}
+   reply('I heard you, but that command is not built in yet. Try “help”, “open YouTube”, “search weather tomorrow”, or “note call home”.');
+ }
+ function loadNotes(){try{return JSON.parse(localStorage.getItem(noteKey)||'[]')}catch(e){return []}}
+ function saveNote(n){const a=loadNotes();a.unshift({text:n,time:new Date().toLocaleString()});try{localStorage.setItem(noteKey,JSON.stringify(a.slice(0,50)));renderNotes()}catch(e){reply('Could not save notes. Browser storage may be disabled.');}}
+ function renderNotes(){
+   const box=$('notes');box.textContent='';const a=loadNotes();
+   if(!a.length){box.textContent='No notes saved yet.';return;}
+   a.forEach((n,i)=>{const p=document.createElement('p');p.style.margin='8px 0';p.textContent='• '+n.text+' ('+n.time+')';box.appendChild(p)});
+ }
+ $('send').addEventListener('click',()=>handle($('command').value));
+ $('command').addEventListener('keydown',e=>{if(e.key==='Enter')handle($('command').value)});
+ document.querySelectorAll('[data-cmd]').forEach(b=>b.addEventListener('click',()=>handle(b.dataset.cmd)));
+ $('voice').addEventListener('click',()=>{voiceOn=!voiceOn;$('voice').textContent=voiceOn?'🔊 Voice replies: ON':'🔇 Voice replies: OFF';if(!voiceOn&&'speechSynthesis'in window)speechSynthesis.cancel();});
+ $('clear').addEventListener('click',()=>{$('log').textContent='';addMessage('Chat cleared. How can I help?');});
+ $('saveNote').addEventListener('click',()=>{const n=$('note').value.trim();if(!n)return;saveNote(n);$('note').value='';});
+ $('note').addEventListener('keydown',e=>{if(e.key==='Enter')$('saveNote').click()});
+ renderNotes();
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(SpeechRecognition){
+   recognition=new SpeechRecognition(); recognition.lang=navigator.language||'en-IN'; recognition.interimResults=false; recognition.continuous=false;
+   recognition.onstart=()=>{listening=true;$('mic').textContent='🟢 Listening…';$('status').textContent='Listening — speak now';};
+   recognition.onend=()=>{listening=false;$('mic').textContent='🎙 Speak';$('status').textContent='Ready · basic commands work offline';};
+   recognition.onerror=e=>{$('status').textContent='Microphone issue: '+e.error+' · try keyboard dictation';};
+   recognition.onresult=e=>{const t=e.results[0][0].transcript;handle(t);};
+   $('mic').addEventListener('click',()=>{try{if(listening)recognition.stop();else recognition.start()}catch(e){$('status').textContent='Could not start microphone. Try again or use keyboard dictation.'}});
+ }else{
+   $('mic').addEventListener('click',()=>reply('Voice recognition is not available in this browser. Tap the microphone on your Android keyboard to dictate, then press Send.'));
+   $('status').textContent='Ready · browser voice recognition unavailable; keyboard dictation may work';
+ }
+})();
+</script>
+</body>
+</html>
